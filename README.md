@@ -31,11 +31,35 @@ SleepShield automatically turns off your WiFi when your MacBook goes to sleep an
 
 ### Option 1: Download Pre-built App (Easiest)
 
-1. Download the latest release from the [Releases](https://github.com/graemedoherty/SleepShield/releases) page
-2. Unzip the downloaded file
+**⚠️ Important: This app is unsigned. macOS will show security warnings. This is normal for open-source apps.**
+
+1. Download the latest `SleepShield-v1.0-macOS.zip` from the [Releases](https://github.com/graemedoherty/SleepShield/releases) page
+
+2. Unzip the downloaded file (double-click it)
+
 3. Move `SleepShield.app` to your Applications folder
-4. Right-click the app and select "Open" (first time only, due to macOS Gatekeeper)
-5. Click "Open" in the security dialog
+
+4. **Remove the quarantine flag** (this allows the app to run):
+   - Open **Terminal** (search for it in Spotlight)
+   - Copy and paste this command, then press Enter:
+     ```bash
+     xattr -cr /Applications/SleepShield.app
+     ```
+
+5. **Open the app:**
+   - Go to your Applications folder
+   - **Right-click** (or Control+click) on `SleepShield.app`
+   - Select **"Open"**
+   - If you see a security warning, click **"Open"** again to confirm
+
+**Alternative method if the above doesn't work:**
+- Try opening the app normally (it will be blocked)
+- Go to **System Settings → Privacy & Security**
+- Scroll down and click **"Open Anyway"** next to the SleepShield message
+- Click **"Open"** to confirm
+
+**Why is this necessary?**
+This app is not code-signed with an Apple Developer certificate ($99/year). The quarantine flag and security warnings are macOS protecting you from unsigned software. Since this is open-source and you can review the code, it's safe to bypass these warnings.
 
 ### Option 2: Build from Source
 
@@ -47,7 +71,7 @@ SleepShield automatically turns off your WiFi when your MacBook goes to sleep an
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/SleepShield.git
+git clone https://github.com/graemedoherty/SleepShield.git
 cd SleepShield
 ```
 
@@ -93,6 +117,17 @@ SleepShield uses macOS's native `NSWorkspace` notifications to detect when your 
 The app continuously tracks WiFi state (every 30 seconds) to ensure it knows the correct state even if you manually toggle WiFi while awake.
 
 ## Troubleshooting
+
+### "Apple could not verify SleepShield is free of malware"
+This is expected for unsigned apps. Follow these steps:
+1. Open Terminal
+2. Run: `xattr -cr /Applications/SleepShield.app`
+3. Right-click the app and select "Open"
+
+### "App cannot be opened" or other security warnings
+- Make sure you've removed the quarantine flag (see installation step 4)
+- Try: System Settings → Privacy & Security → click "Open Anyway"
+- Or right-click → Open instead of double-clicking
 
 ### WiFi doesn't turn off during sleep
 - Make sure the app is running (check Activity Monitor)
