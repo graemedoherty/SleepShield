@@ -6,12 +6,17 @@
 //
 
 import SwiftUI
+import AppKit
+
 
 @main
 struct SleepShieldApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
+@NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+
+var body: some Scene {
+Settings {
+EmptyView()
+}
+}
 }

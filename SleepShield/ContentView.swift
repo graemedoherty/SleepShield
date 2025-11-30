@@ -8,17 +8,43 @@
 import SwiftUI
 
 struct ContentView: View {
+    @ObservedObject var viewModel: DeviceController
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle(isOn: $viewModel.enabled) {
+                Text("Enable SleepShield")
+            }
+            Toggle(isOn: $viewModel.disableWiFiOnSleep) {
+                Text("Turn off Wi‑Fi on sleep")
+            }
+            
+            Divider()
+            
+            HStack {
+                Text("Last action:")
+                Spacer()
+                Text(viewModel.lastActionMessage)
+                    .foregroundColor(.secondary)
+            }
+            
+            Divider()
+            
+            HStack {
+                Button(action: testSleep) { Text("Simulate Sleep") }
+                Spacer()
+                Button(action: testWake) { Text("Simulate Wake") }
+            }
         }
         .padding()
+        .frame(width: 300)
     }
-}
+    
+    func testSleep() {
+        viewModel.handleSystemSleep()
+    }
 
-#Preview {
-    ContentView()
+    func testWake() {
+        viewModel.handleSystemWake()
+    }
 }
