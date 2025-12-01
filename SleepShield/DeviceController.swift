@@ -8,17 +8,26 @@
 import Foundation
 import Combine
 import AppKit
+import IOKit.ps
 
 final class DeviceController: ObservableObject {
     @Published var enabled = true
     @Published var disableWiFiOnSleep = true
     @Published var lastActionMessage: String = "Ready"
     
+    // Battery tracking
+    @Published var sleepBatteryLevel: Int?
+    @Published var wakeBatteryLevel: Int?
+    @Published var batteryDrainPercentage: Int?
+    @Published var sleepTime: Date?
+    @Published var wakeTime: Date?
+    @Published var sleepDuration: String?
+    
     // Track state so we only re-enable what we disabled
     private var shouldRestoreWiFi: Bool = false
     private var wifiInterface: String = "en0" // default
     private var wifiStateTimer: Timer?
-    private var isAsleep: Bool = false // Track if system is asleep
+    private var isAsleep: Bool = false
     
     init() {
         // Try to detect the correct WiFi interface on startup
@@ -94,26 +103,57 @@ final class DeviceController: ObservableObject {
     func handleSystemSleep() {
         guard enabled && disableWiFiOnSleep else { return }
         
-        isAsleep = true // Mark that we're asleep
+        isAsleep = true
         print("💤 System going to sleep...")
         print("💾 Remembered WiFi state: \(shouldRestoreWiFi ? "was ON" : "was OFF")")
         
-        // Always try to turn off WiFi during sleep, regardless of current state
-        // We'll rely on our tracked state to know if we should restore it
+        // Record battery level and time
+        sleepBatteryLevel = getCurrentBatteryLevel()
+        sleepTime = Date()
+        
+        if let battery = sleepBatteryLevel {
+            print("🔋 Battery at sleep: \(battery)%")
+        }
+        
+        // Turn off WiFi
         setWiFi(powerOn: false)
-        publish("Wi‑Fi turned off for sleep")
+        publish("Wi‑Fi off - Sleep at \(sleepBatteryLevel ?? 0)%")
     }
     
     func handleSystemWake() {
         guard enabled && disableWiFiOnSleep else { return }
         
-        isAsleep = false // Mark that we're awake
+        isAsleep = false
         print("☀️ System waking up...")
         print("🔍 Should restore WiFi? \(shouldRestoreWiFi ? "YES" : "NO")")
         
+        // Record wake time and battery level
+        wakeTime = Date()
+        wakeBatteryLevel = getCurrentBatteryLevel()
+        
+        // Calculate drain and duration
+        if let sleepBattery = sleepBatteryLevel, let wakeBattery = wakeBatteryLevel {
+            batteryDrainPercentage = sleepBattery - wakeBattery
+            print("🔋 Battery drain: \(batteryDrainPercentage ?? 0)% (from \(sleepBattery)% to \(wakeBattery)%)")
+        }
+        
+        if let sleep = sleepTime, let wake = wakeTime {
+            let duration = wake.timeIntervalSince(sleep)
+            sleepDuration = formatDuration(duration)
+            print("⏱️ Sleep duration: \(sleepDuration ?? "unknown")")
+        }
+        
+        // Restore WiFi if needed
         if shouldRestoreWiFi {
             setWiFi(powerOn: true)
-            publish("Wi‑Fi restored on wake")
+            
+            // Build status message
+            var message = "Wake - WiFi restored"
+            if let drain = batteryDrainPercentage, let duration = sleepDuration {
+                message = "Wake - \(drain)% drain in \(duration)"
+            }
+            publish(message)
+            
             // Update state after a short delay to let WiFi reconnect
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
                 guard let self = self else { return }
@@ -122,6 +162,35 @@ final class DeviceController: ObservableObject {
             }
         } else {
             print("ℹ️ WiFi was off before sleep, leaving it off")
+            publish("Wake - WiFi remains off")
+        }
+    }
+    
+    // MARK: - Battery Tracking
+    
+    func getCurrentBatteryLevel() -> Int? {
+        let snapshot = IOPSCopyPowerSourcesInfo().takeRetainedValue()
+        let sources = IOPSCopyPowerSourcesList(snapshot).takeRetainedValue() as Array
+        
+        for source in sources {
+            let info = IOPSGetPowerSourceDescription(snapshot, source).takeUnretainedValue() as! [String: AnyObject]
+            
+            if let capacity = info[kIOPSCurrentCapacityKey] as? Int {
+                return capacity
+            }
+        }
+        
+        return nil
+    }
+    
+    func formatDuration(_ seconds: TimeInterval) -> String {
+        let hours = Int(seconds) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
+        
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
         }
     }
     
