@@ -1,4 +1,5 @@
 # SleepShield 🛡️
+<img width="1075" height="533" alt="SleepShield" src="https://github.com/user-attachments/assets/e4f1031d-a092-4706-8812-5927b0b37926" />
 
 **Prevent battery drain on your MacBook by automatically disabling WiFi during sleep.**
 
