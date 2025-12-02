@@ -13,6 +13,7 @@ import IOKit.ps
 final class DeviceController: ObservableObject {
     @Published var enabled = true
     @Published var disableWiFiOnSleep = true
+    @Published var launchAtLogin = false
     @Published var lastActionMessage: String = "Ready"
     
     // Battery tracking
@@ -36,6 +37,9 @@ final class DeviceController: ObservableObject {
         // Check initial WiFi state
         shouldRestoreWiFi = isWiFiOn()
         print("🎬 Initial WiFi state: \(shouldRestoreWiFi ? "ON" : "OFF")")
+        
+        // Check if launch at login is enabled
+        launchAtLogin = isLaunchAtLoginEnabled()
         
         // Register for system sleep/wake notifications
         registerForSleepWakeNotifications()
@@ -191,6 +195,66 @@ final class DeviceController: ObservableObject {
             return "\(hours)h \(minutes)m"
         } else {
             return "\(minutes)m"
+        }
+    }
+    
+    // MARK: - Launch at Login
+    
+    func isLaunchAtLoginEnabled() -> Bool {
+        // Check if app is in login items
+        guard let bundleId = Bundle.main.bundleIdentifier else { return false }
+        
+        let script = """
+        tell application "System Events"
+            get the name of every login item
+        end tell
+        """
+        
+        let output = runAppleScript(script)
+        return output.contains("SleepShield")
+    }
+    
+    func setLaunchAtLogin(enabled: Bool) {
+        let appPath = Bundle.main.bundlePath
+        
+        if enabled {
+            // Add to login items
+            let script = """
+            tell application "System Events"
+                make login item at end with properties {path:"\(appPath)", hidden:false}
+            end tell
+            """
+            _ = runAppleScript(script)
+            print("✅ Added to login items")
+        } else {
+            // Remove from login items
+            let script = """
+            tell application "System Events"
+                delete login item "SleepShield"
+            end tell
+            """
+            _ = runAppleScript(script)
+            print("✅ Removed from login items")
+        }
+    }
+    
+    private func runAppleScript(_ script: String) -> String {
+        let task = Process()
+        task.launchPath = "/usr/bin/osascript"
+        task.arguments = ["-e", script]
+        
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = pipe
+        
+        do {
+            try task.run()
+            task.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8) ?? ""
+        } catch {
+            return ""
         }
     }
     
